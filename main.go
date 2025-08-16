@@ -12,6 +12,7 @@ import (
 	"net/smtp"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -190,6 +191,13 @@ func sendEmail(c smtpCfg, subject, body string) error {
 	return client.Quit()
 }
 
+// ----- In-memory state (alert de-dup) -----
+
+type monitorState struct {
+	last string // "unknown", "online", "offline", "api_error"
+	mu   sync.Mutex
+}
+
 // ----- Monitor job -----
 
 func runCheck(cfg Config) {
@@ -197,34 +205,65 @@ func runCheck(cfg Config) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	// Determine current state
+	current := "online"
 	res, err := checkAPI(ctx, url)
 	if err != nil {
-		log.Printf("CHECK FAILED: %v", err)
-		_ = sendEmail(smtpCfg{
-			User: cfg.SMTPUser,
-			Pass: cfg.SMTPPass,
-			Server: cfg.SMTPServer,
-			Port: cfg.SMTPPort,
-			Recipient: cfg.Recipient},
-			"[Pangolin Monitor] API check FAILED",
-			fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v",
-			time.Now().UTC().Format(time.RFC3339), url, err)
-		)
-		return
+		current = "api_error"
+	} else if !res.Data.Online {
+		current = "offline"
 	}
 
-	if !res.Data.Online {
-		name := res.Data.Name
-		if name == "" { name = cfg.SiteNiceID }
-		log.Printf("SITE OFFLINE: %s (%s)", name, cfg.SiteNiceID)
-		subj := fmt.Sprintf("[Pangolin Monitor] Site %s is OFFLINE", name)
-		body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s",
-		time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Message)
-		_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
-		return
-	}
+	// Critical section for reading/updating last state
+	state.mu.Lock()
+	prev := state.last
+	defer func() {
+		state.last = current
+		state.mu.Unlock()
+	}()
 
-	log.Printf("OK: site online (org=%s site=%s)", cfg.OrgID, cfg.SiteNiceID)
+	// Handle logging and notifications
+	switch current {
+	case "api_error":
+		if prev != current { // transition into API error
+			log.Printf("API CHECK FAILED (prev=%s)", prev)
+			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
+				"[Pangolin Monitor] API check FAILED",
+				fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v\n", time.Now().UTC().Format(time.RFC3339), url, err))
+		} else {
+			log.Printf("API CHECK FAILED (unchanged, suppressing repeat email)")
+		}
+		return
+
+	case "offline":
+		if prev != current { // transition into offline
+			name := res.Data.Name
+			if name == "" {
+				name = cfg.SiteNiceID
+			}
+			log.Printf("SITE OFFLINE: %s (%s) (prev=%s)", name, cfg.SiteNiceID, prev)
+			subj := fmt.Sprintf("[Pangolin Monitor] Site %s is OFFLINE", name)
+			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Message)
+			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
+		} else {
+			log.Printf("SITE OFFLINE (unchanged, suppressing repeat email)")
+		}
+		return
+
+	default: // online
+		if prev == "offline" || prev == "api_error" {
+			log.Printf("RECOVERY: site back ONLINE (prev=%s)", prev)
+			name := res.Data.Name
+			if name == "" {
+				name = cfg.SiteNiceID
+			}
+			subj := fmt.Sprintf("[Pangolin Monitor] Site %s is ONLINE (recovered)", name)
+			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nPrevious state: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, prev)
+			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
+		} else {
+			log.Printf("OK: site online (no change)")
+		}
+	}
 }
 
 func main() {
