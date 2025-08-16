@@ -143,17 +143,11 @@ func sendEmail(c smtpCfg, subject, body string) error {
 	msg := strings.Builder{}
 	msg.WriteString("From: ")
 	msg.WriteString(from)
-	msg.WriteString("
-To: ")
+	msg.WriteString("To: ")
 	msg.WriteString(c.Recipient)
-	msg.WriteString("
-Subject: ")
+	msg.WriteString("Subject: ")
 	msg.WriteString(subject)
-	msg.WriteString("
-MIME-Version: 1.0
-Content-Type: text/plain; charset=\"utf-8\"
-
-")
+	msg.WriteString("MIME-Version: 1.0; Content-Type: text/plain; charset=\"utf-8\"")
 	msg.WriteString(body)
 
 	auth := smtp.PlainAuth("", c.User, c.Pass, host)
