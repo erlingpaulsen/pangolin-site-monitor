@@ -32,6 +32,7 @@ type Config struct {
 	SMTPServer string
 	SMTPPort   string
 	Recipient  string
+	Token      string
 }
 
 func getEnv(k string) string { return strings.TrimSpace(os.Getenv(k)) }
@@ -49,6 +50,7 @@ func loadConfig() (Config, error) {
 		SMTPServer: getEnv("SMTP_SERVER"),
 		SMTPPort:   getEnv("SMTP_PORT"),
 		Recipient:  getEnv("RECIPIENT_EMAIL"),
+		Token:      getEnv("PANGOLIN_INT_API_TOKEN"),
 	}
 	missing := []string{}
 	if cfg.Protocol == "" {
@@ -84,6 +86,9 @@ func loadConfig() (Config, error) {
 	if cfg.Recipient == "" {
 		missing = append(missing, "RECIPIENT_EMAIL")
 	}
+	if cfg.Token == "" {
+		missing = append(missing, "PANGOLIN_INT_API_TOKEN")
+	}
 	if len(missing) > 0 {
 		return cfg, fmt.Errorf("missing required env: %s", strings.Join(missing, ", "))
 	}
@@ -114,7 +119,8 @@ type siteResponse struct {
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func checkAPI(ctx context.Context, url string) (siteResponse, error) {
+
+func checkAPI(ctx context.Context, url string, token string) (siteResponse, error) {
 	var respObj siteResponse
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -122,6 +128,7 @@ func checkAPI(ctx context.Context, url string) (siteResponse, error) {
 		return respObj, err
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -163,7 +170,6 @@ func sendEmail(c smtpCfg, subject, body string) error {
 	addr := net.JoinHostPort(c.Server, c.Port)
 	host := c.Server
 
-	// Note: Corrected email message formatting for clarity and standards.
 	msg := "From: " + from + "\n" +
 		"To: " + c.Recipient + "\n" +
 		"Subject: " + subject + "\n" +
@@ -173,7 +179,6 @@ func sendEmail(c smtpCfg, subject, body string) error {
 
 	auth := smtp.PlainAuth("", c.User, c.Pass, host)
 
-	// If port == 465, do implicit TLS; otherwise attempt STARTTLS
 	if c.Port == "465" {
 		conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: host})
 		if err != nil {
@@ -211,13 +216,11 @@ func sendEmail(c smtpCfg, subject, body string) error {
 		return client.Quit()
 	}
 
-	// STARTTLS path
 	client, err := smtp.Dial(addr)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
-	// Try STARTTLS if supported
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		if err := client.StartTLS(&tls.Config{ServerName: host}); err != nil {
 			return err
@@ -252,9 +255,10 @@ func sendEmail(c smtpCfg, subject, body string) error {
 // ----- In-memory state (alert de-dup) -----
 
 type monitorState struct {
-	last string // "unknown", "online", "offline", "api_error"
+	last string
 	mu   sync.Mutex
 }
+
 var state = monitorState{last: "unknown"}
 
 // ----- Monitor job -----
@@ -264,25 +268,22 @@ func runCheck(cfg Config) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Determine current state
 	current := "online"
-	res, err := checkAPI(ctx, url)
+	res, err := checkAPI(ctx, url, cfg.Token)
 	if err != nil {
 		current = "api_error"
 	} else if !res.Data.Online {
 		current = "offline"
 	}
 
-	// Critical section for reading/updating last state
 	state.mu.Lock()
 	prev := state.last
 	state.last = current
 	state.mu.Unlock()
 
-	// Handle logging and notifications
 	switch current {
 	case "api_error":
-		if prev != current { // transition into API error
+		if prev != current {
 			log.Printf("API CHECK FAILED (prev=%s)", prev)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
 				"[Pangolin Monitor] API check FAILED",
@@ -293,7 +294,7 @@ func runCheck(cfg Config) {
 		return
 
 	case "offline":
-		if prev != current { // transition into offline
+		if prev != current {
 			name := res.Data.Name
 			if name == "" {
 				name = cfg.SiteNiceID
@@ -331,10 +332,8 @@ func main() {
 	}
 	log.Printf("starting pangolin-site-monitor | endpoint=%s | schedule=%s (UTC)", cfg.endpoint(), cfg.CronSpec)
 
-	// Run once on startup
 	runCheck(cfg)
 
-	// Prepare 5-field cron (min,hour,dom,month,dow)
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	sched, err := parser.Parse(cfg.CronSpec)
 	if err != nil {
