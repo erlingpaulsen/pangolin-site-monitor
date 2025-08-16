@@ -7,9 +7,10 @@ services:
 
     container_name: pangolin-site-monitor
     restart: unless-stopped
+    network_mode: "host"
     environment:
       PANGOLIN_INT_API_PROTOCOL: "https"
-      PANGOLIN_INT_API_HOSTNAME: "pangolin"
+      PANGOLIN_INT_API_HOSTNAME: "localhost"
       PANGOLIN_INT_API_PORT: "443"
       PANGOLIN_INT_API_TOKEN: "API_TOKEN"
       PANGOLIN_ORG_ID: "abc123"
@@ -20,9 +21,3 @@ services:
       SMTP_SERVER: "smtp.example.com"
       SMTP_PORT: "587"
       RECIPIENT_EMAIL: "you@example.com"
-    networks:
-      - pangolin-site-monitor
-
-networks:
-  pangolin-site-monitor:
-    external: true
