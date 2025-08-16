@@ -7,9 +7,12 @@ services:
 
     container_name: pangolin-site-monitor
     restart: unless-stopped
+    extra_hosts:
+      # This line makes host.docker.internal resolve to the host's IP
+      - "host.docker.internal:host-gateway"
     environment:
       PANGOLIN_INT_API_PROTOCOL: "https"
-      PANGOLIN_INT_API_HOSTNAME: "api.example.com"
+      PANGOLIN_INT_API_HOSTNAME: "host.docker.internal"
       PANGOLIN_INT_API_PORT: "443"
       PANGOLIN_INT_API_TOKEN: "API_TOKEN"
       PANGOLIN_ORG_ID: "abc123"
