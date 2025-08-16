@@ -200,11 +200,16 @@ func runCheck(cfg Config) {
 	res, err := checkAPI(ctx, url)
 	if err != nil {
 		log.Printf("CHECK FAILED: %v", err)
-		_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
-			"[Pangolin Monitor] API check FAILED", fmt.Sprintf("Time (UTC): %s
-Endpoint: %s
-Error: %v
-", time.Now().UTC().Format(time.RFC3339), url, err))
+		_ = sendEmail(smtpCfg{
+			User: cfg.SMTPUser,
+			Pass: cfg.SMTPPass,
+			Server: cfg.SMTPServer,
+			Port: cfg.SMTPPort,
+			Recipient: cfg.Recipient},
+			"[Pangolin Monitor] API check FAILED",
+			fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v",
+			time.Now().UTC().Format(time.RFC3339), url, err)
+		)
 		return
 	}
 
@@ -213,13 +218,8 @@ Error: %v
 		if name == "" { name = cfg.SiteNiceID }
 		log.Printf("SITE OFFLINE: %s (%s)", name, cfg.SiteNiceID)
 		subj := fmt.Sprintf("[Pangolin Monitor] Site %s is OFFLINE", name)
-		body := fmt.Sprintf("Time (UTC): %s
-Endpoint: %s
-Org: %s
-Site: %s
-Online: %v
-Message: %s
-", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Message)
+		body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s",
+		time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Message)
 		_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		return
 	}
