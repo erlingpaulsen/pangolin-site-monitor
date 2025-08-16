@@ -1,0 +1,17 @@
+# Go
+bin/
+build/
+*.exe
+*.test
+*.out
+
+# VCS
+.git
+.gitignore
+
+# Editors
+.vscode/
+.idea/
+
+# Env / secrets
+.env

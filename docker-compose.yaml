@@ -1,0 +1,21 @@
+services:
+  monitor:
+    # Option A: build locally from this folder (no registry needed)
+    build: .
+    # Option B: comment `build:` and uncomment below line after you `docker build -t pangolin-site-monitor:latest .`
+    # image: pangolin-site-monitor:latest
+
+    container_name: pangolin-site-monitor
+    restart: unless-stopped
+    environment:
+      PANGOLIN_INT_API_PROTOCOL: "https"
+      PANGOLIN_INT_API_HOSTNAME: "api.example.com"
+      PANGOLIN_INT_API_PORT: "443"
+      PANGOLIN_ORG_ID: "abc123"
+      PANGOLIN_SITE_NICE_ID: "homelab"
+      CRON_SCHEDULE: "*/5 * * * *" # runs every 5 minutes (UTC)
+      SMTP_USER: "alerts@example.com"
+      SMTP_PASSWORD: "app_password_here"
+      SMTP_SERVER: "smtp.example.com"
+      SMTP_PORT: "587" # or 465 for implicit TLS
+      RECIPIENT_EMAIL: "you@example.com"
