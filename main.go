@@ -119,7 +119,6 @@ type siteResponse struct {
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-
 func checkAPI(ctx context.Context, url string, token string) (siteResponse, error) {
 	var respObj siteResponse
 
@@ -281,45 +280,47 @@ func runCheck(cfg Config) {
 	state.last = current
 	state.mu.Unlock()
 
+	ts := time.Now().UTC().Format(time.RFC3339)
+
 	switch current {
 	case "api_error":
 		if prev != current {
-			log.Printf("API CHECK FAILED (prev=%s): %v", prev, err)
+			log.Printf("%s - ERROR - API check failed (previously: %s). Sending alert. Error: %v", ts, prev, err)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
 				"⚠️[Pangolin Monitor] API check FAILED",
 				fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v\n", time.Now().UTC().Format(time.RFC3339), url, err))
 		} else {
-			log.Printf("API CHECK FAILED (unchanged, suppressing repeat email): %v", err)
+			log.Printf("%s - WARN - API check failed (state unchanged, suppressing email). Error: %v", ts, err)
 		}
 		return
 
 	case "offline":
+		name := res.Data.Name
+		if name == "" {
+			name = cfg.SiteNiceID
+		}
 		if prev != current {
-			name := res.Data.Name
-			if name == "" {
-				name = cfg.SiteNiceID
-			}
-			log.Printf("SITE OFFLINE: %s (%s) (prev=%s)", name, cfg.SiteNiceID, prev)
+			log.Printf("%s - OFFLINE - Site is offline (previously: %s). Sending alert. name=%s siteId=%s", ts, prev, name, cfg.SiteNiceID)
 			subj := fmt.Sprintf("🚨[Pangolin Monitor] Site %s is OFFLINE", name)
 			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Data.Message)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		} else {
-			log.Printf("SITE OFFLINE (unchanged, suppressing repeat email)")
+			log.Printf("%s - WARN - Site is offline (state unchanged, suppressing email). name=%s siteId=%s", ts, name, cfg.SiteNiceID)
 		}
 		return
 
 	default: // online
 		if prev == "offline" || prev == "api_error" {
-			log.Printf("RECOVERY: site back ONLINE (prev=%s)", prev)
 			name := res.Data.Name
 			if name == "" {
 				name = cfg.SiteNiceID
 			}
+			log.Printf("%s - RECOVERY - Site is back online (previously: %s). Sending alert. name=%s siteId=%s", ts, prev, name, cfg.SiteNiceID)
 			subj := fmt.Sprintf("🟢[Pangolin Monitor] Site %s is ONLINE (recovered)", name)
 			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nPrevious state: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, prev)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		} else {
-			log.Printf("OK: site online (no change)")
+			log.Printf("%s - OK - Site is online (state unchanged).", ts)
 		}
 	}
 }
@@ -330,7 +331,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("config error: %v", err)
 	}
-	log.Printf("starting pangolin-site-monitor | endpoint=%s | schedule=%s (UTC)", cfg.endpoint(), cfg.CronSpec)
+	log.Printf("%s - INFO - Starting pangolin-site-monitor. endpoint=%s schedule='%s'", time.Now().UTC().Format(time.RFC3339), cfg.endpoint(), cfg.CronSpec)
 
 	runCheck(cfg)
 
