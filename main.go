@@ -284,12 +284,12 @@ func runCheck(cfg Config) {
 	switch current {
 	case "api_error":
 		if prev != current {
-			log.Printf("API CHECK FAILED (prev=%s)", prev)
+			log.Printf("API CHECK FAILED (prev=%s): %v", prev, err)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
 				"[Pangolin Monitor] API check FAILED",
 				fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v\n", time.Now().UTC().Format(time.RFC3339), url, err))
 		} else {
-			log.Printf("API CHECK FAILED (unchanged, suppressing repeat email)")
+			log.Printf("API CHECK FAILED (unchanged, suppressing repeat email): %v", err)
 		}
 		return
 
