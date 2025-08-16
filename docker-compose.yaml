@@ -11,11 +11,12 @@ services:
       PANGOLIN_INT_API_PROTOCOL: "https"
       PANGOLIN_INT_API_HOSTNAME: "api.example.com"
       PANGOLIN_INT_API_PORT: "443"
+      PANGOLIN_INT_API_TOKEN: "API_TOKEN"
       PANGOLIN_ORG_ID: "abc123"
       PANGOLIN_SITE_NICE_ID: "homelab"
-      CRON_SCHEDULE: "*/5 * * * *" # runs every 5 minutes (UTC)
+      CRON_SCHEDULE: "*/5 * * * *"
       SMTP_USER: "alerts@example.com"
       SMTP_PASSWORD: "app_password_here"
       SMTP_SERVER: "smtp.example.com"
-      SMTP_PORT: "587" # or 465 for implicit TLS
+      SMTP_PORT: "587"
       RECIPIENT_EMAIL: "you@example.com"

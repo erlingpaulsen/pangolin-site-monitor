@@ -12,6 +12,7 @@ A minimal Go service that checks a Pangolin Integration API endpoint on a cron s
 | `PANGOLIN_INT_API_PROTOCOL` | yes | `https` | `http` or `https` |
 | `PANGOLIN_INT_API_HOSTNAME` | yes | `api.example.com` | Hostname of the Integration API |
 | `PANGOLIN_INT_API_PORT` | yes | `443` | API port |
+| `PANGOLIN_INT_API_TOKEN` | yes | `abc123` | API token with get and list permissions for org and site |
 | `PANGOLIN_ORG_ID` | yes | `abc123` | Your Pangolin organization id |
 | `PANGOLIN_SITE_NICE_ID` | yes | `homelab` | The site nice id |
 | `CRON_SCHEDULE` | yes | `*/5 * * * *` | Five-field cron spec (minute hour dom month dow), **UTC** |
