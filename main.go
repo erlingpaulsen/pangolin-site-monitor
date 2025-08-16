@@ -96,7 +96,7 @@ func loadConfig() (Config, error) {
 }
 
 func (c Config) endpoint() string {
-	return fmt.Sprintf("%s://%s:%s/v1/org/%s/%s", c.Protocol, c.Host, c.Port, c.OrgID, c.SiteNiceID)
+	return fmt.Sprintf("%s://%s:%s/v1/org/%s/site/%s", c.Protocol, c.Host, c.Port, c.OrgID, c.SiteNiceID)
 }
 
 // ----- HTTP & payload -----
