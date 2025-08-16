@@ -286,7 +286,7 @@ func runCheck(cfg Config) {
 		if prev != current {
 			log.Printf("API CHECK FAILED (prev=%s): %v", prev, err)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient},
-				"[Pangolin Monitor] API check FAILED",
+				"⚠️[Pangolin Monitor] API check FAILED",
 				fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nError: %v\n", time.Now().UTC().Format(time.RFC3339), url, err))
 		} else {
 			log.Printf("API CHECK FAILED (unchanged, suppressing repeat email): %v", err)
@@ -300,7 +300,7 @@ func runCheck(cfg Config) {
 				name = cfg.SiteNiceID
 			}
 			log.Printf("SITE OFFLINE: %s (%s) (prev=%s)", name, cfg.SiteNiceID, prev)
-			subj := fmt.Sprintf("[Pangolin Monitor] Site %s is OFFLINE", name)
+			subj := fmt.Sprintf("🚨[Pangolin Monitor] Site %s is OFFLINE", name)
 			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Data.Message)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		} else {
@@ -315,7 +315,7 @@ func runCheck(cfg Config) {
 			if name == "" {
 				name = cfg.SiteNiceID
 			}
-			subj := fmt.Sprintf("[Pangolin Monitor] Site %s is ONLINE (recovered)", name)
+			subj := fmt.Sprintf("🟢[Pangolin Monitor] Site %s is ONLINE (recovered)", name)
 			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nPrevious state: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, prev)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		} else {
