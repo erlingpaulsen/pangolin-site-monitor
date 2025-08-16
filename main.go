@@ -51,17 +51,39 @@ func loadConfig() (Config, error) {
 		Recipient:  getEnv("RECIPIENT_EMAIL"),
 	}
 	missing := []string{}
-	if cfg.Protocol == "" { missing = append(missing, "PANGOLIN_INT_API_PROTOCOL") }
-	if cfg.Host == "" { missing = append(missing, "PANGOLIN_INT_API_HOSTNAME") }
-	if cfg.Port == "" { missing = append(missing, "PANGOLIN_INT_API_PORT") }
-	if cfg.OrgID == "" { missing = append(missing, "PANGOLIN_ORG_ID") }
-	if cfg.SiteNiceID == "" { missing = append(missing, "PANGOLIN_SITE_NICE_ID") }
-	if cfg.CronSpec == "" { missing = append(missing, "CRON_SCHEDULE") }
-	if cfg.SMTPUser == "" { missing = append(missing, "SMTP_USER") }
-	if cfg.SMTPPass == "" { missing = append(missing, "SMTP_PASSWORD") }
-	if cfg.SMTPServer == "" { missing = append(missing, "SMTP_SERVER") }
-	if cfg.SMTPPort == "" { missing = append(missing, "SMTP_PORT") }
-	if cfg.Recipient == "" { missing = append(missing, "RECIPIENT_EMAIL") }
+	if cfg.Protocol == "" {
+		missing = append(missing, "PANGOLIN_INT_API_PROTOCOL")
+	}
+	if cfg.Host == "" {
+		missing = append(missing, "PANGOLIN_INT_API_HOSTNAME")
+	}
+	if cfg.Port == "" {
+		missing = append(missing, "PANGOLIN_INT_API_PORT")
+	}
+	if cfg.OrgID == "" {
+		missing = append(missing, "PANGOLIN_ORG_ID")
+	}
+	if cfg.SiteNiceID == "" {
+		missing = append(missing, "PANGOLIN_SITE_NICE_ID")
+	}
+	if cfg.CronSpec == "" {
+		missing = append(missing, "CRON_SCHEDULE")
+	}
+	if cfg.SMTPUser == "" {
+		missing = append(missing, "SMTP_USER")
+	}
+	if cfg.SMTPPass == "" {
+		missing = append(missing, "SMTP_PASSWORD")
+	}
+	if cfg.SMTPServer == "" {
+		missing = append(missing, "SMTP_SERVER")
+	}
+	if cfg.SMTPPort == "" {
+		missing = append(missing, "SMTP_PORT")
+	}
+	if cfg.Recipient == "" {
+		missing = append(missing, "RECIPIENT_EMAIL")
+	}
 	if len(missing) > 0 {
 		return cfg, fmt.Errorf("missing required env: %s", strings.Join(missing, ", "))
 	}
@@ -90,7 +112,7 @@ type siteResponse struct {
 	Status  int      `json:"status"`
 }
 
-var httpClient = &http.Client{ Timeout: 10 * time.Second }
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 func checkAPI(ctx context.Context, url string) (siteResponse, error) {
 	var respObj siteResponse
@@ -141,53 +163,89 @@ func sendEmail(c smtpCfg, subject, body string) error {
 	addr := net.JoinHostPort(c.Server, c.Port)
 	host := c.Server
 
-	msg := strings.Builder{}
-	msg.WriteString("From: ")
-	msg.WriteString(from)
-	msg.WriteString("To: ")
-	msg.WriteString(c.Recipient)
-	msg.WriteString("Subject: ")
-	msg.WriteString(subject)
-	msg.WriteString("MIME-Version: 1.0; Content-Type: text/plain; charset=\"utf-8\"")
-	msg.WriteString(body)
+	// Note: Corrected email message formatting for clarity and standards.
+	msg := "From: " + from + "\n" +
+		"To: " + c.Recipient + "\n" +
+		"Subject: " + subject + "\n" +
+		"MIME-Version: 1.0\n" +
+		"Content-Type: text/plain; charset=\"utf-8\"\n\n" +
+		body
 
 	auth := smtp.PlainAuth("", c.User, c.Pass, host)
 
 	// If port == 465, do implicit TLS; otherwise attempt STARTTLS
 	if c.Port == "465" {
 		conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: host})
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer conn.Close()
 		client, err := smtp.NewClient(conn, host)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer client.Close()
 		if ok, _ := client.Extension("AUTH"); ok {
-			if err := client.Auth(auth); err != nil { return err }
+			if err := client.Auth(auth); err != nil {
+				return err
+			}
 		}
-		if err := client.Mail(from); err != nil { return err }
-		for _, rcpt := range to { if err := client.Rcpt(rcpt); err != nil { return err } }
-		w, err := client.Data(); if err != nil { return err }
-		if _, err := w.Write([]byte(msg.String())); err != nil { return err }
-		if err := w.Close(); err != nil { return err }
+		if err := client.Mail(from); err != nil {
+			return err
+		}
+		for _, rcpt := range to {
+			if err := client.Rcpt(rcpt); err != nil {
+				return err
+			}
+		}
+		w, err := client.Data()
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(msg)); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
 		return client.Quit()
 	}
 
 	// STARTTLS path
 	client, err := smtp.Dial(addr)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer client.Close()
 	// Try STARTTLS if supported
 	if ok, _ := client.Extension("STARTTLS"); ok {
-		if err := client.StartTLS(&tls.Config{ServerName: host}); err != nil { return err }
+		if err := client.StartTLS(&tls.Config{ServerName: host}); err != nil {
+			return err
+		}
 	}
 	if ok, _ := client.Extension("AUTH"); ok {
-		if err := client.Auth(auth); err != nil { return err }
+		if err := client.Auth(auth); err != nil {
+			return err
+		}
 	}
-	if err := client.Mail(from); err != nil { return err }
-	for _, rcpt := range to { if err := client.Rcpt(rcpt); err != nil { return err } }
-	w, err := client.Data(); if err != nil { return err }
-	if _, err := w.Write([]byte(msg.String())); err != nil { return err }
-	if err := w.Close(); err != nil { return err }
+	if err := client.Mail(from); err != nil {
+		return err
+	}
+	for _, rcpt := range to {
+		if err := client.Rcpt(rcpt); err != nil {
+			return err
+		}
+	}
+	w, err := client.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(msg)); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
 	return client.Quit()
 }
 
@@ -197,6 +255,7 @@ type monitorState struct {
 	last string // "unknown", "online", "offline", "api_error"
 	mu   sync.Mutex
 }
+var state = monitorState{last: "unknown"}
 
 // ----- Monitor job -----
 
@@ -217,10 +276,8 @@ func runCheck(cfg Config) {
 	// Critical section for reading/updating last state
 	state.mu.Lock()
 	prev := state.last
-	defer func() {
-		state.last = current
-		state.mu.Unlock()
-	}()
+	state.last = current
+	state.mu.Unlock()
 
 	// Handle logging and notifications
 	switch current {
@@ -243,7 +300,7 @@ func runCheck(cfg Config) {
 			}
 			log.Printf("SITE OFFLINE: %s (%s) (prev=%s)", name, cfg.SiteNiceID, prev)
 			subj := fmt.Sprintf("[Pangolin Monitor] Site %s is OFFLINE", name)
-			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Message)
+			body := fmt.Sprintf("Time (UTC): %s\nEndpoint: %s\nOrg: %s\nSite: %s\nOnline: %v\nMessage: %s\n", time.Now().UTC().Format(time.RFC3339), url, cfg.OrgID, cfg.SiteNiceID, res.Data.Online, res.Data.Message)
 			_ = sendEmail(smtpCfg{User: cfg.SMTPUser, Pass: cfg.SMTPPass, Server: cfg.SMTPServer, Port: cfg.SMTPPort, Recipient: cfg.Recipient}, subj, body)
 		} else {
 			log.Printf("SITE OFFLINE (unchanged, suppressing repeat email)")
@@ -284,10 +341,8 @@ func main() {
 		log.Fatalf("invalid CRON_SCHEDULE: %v", err)
 	}
 
-	c := cron.New(cron.WithParser(parser), cron.WithChain())
-	_, err = c.Schedule(sched, cron.FuncJob(func() { runCheck(cfg) }))
-	if err != nil {
-		log.Fatalf("cron schedule error: %v", err)
-	}
+	c := cron.New(cron.WithParser(parser))
+	c.Schedule(sched, cron.FuncJob(func() { runCheck(cfg) }))
+
 	c.Run()
 }
