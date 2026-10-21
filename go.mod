@@ -1,7 +1,5 @@
 module github.com/erlingpaulsen/pangolin-site-monitor
 
-go 1.22
+go 1.27
 
-require (
-	github.com/robfig/cron/v3 v3.0.1
-)
+require github.com/robfig/cron/v3 v3.0.1

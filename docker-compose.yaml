@@ -1,10 +1,6 @@
 services:
   monitor:
-    # Option A: build locally from this folder (no registry needed)
     build: .
-    # Option B: comment `build:` and uncomment below line after you `docker build -t pangolin-site-monitor:latest .`
-    # image: pangolin-site-monitor:latest
-
     container_name: pangolin-site-monitor
     restart: unless-stopped
     network_mode: "host"
@@ -15,7 +11,10 @@ services:
       PANGOLIN_INT_API_TOKEN: "API_TOKEN"
       PANGOLIN_ORG_ID: "abc123"
       PANGOLIN_SITE_NICE_ID: "homelab"
+      PANGOLIN_RESOURCE_DOMAINS: "app.example.com"
       CRON_SCHEDULE: "*/5 * * * *"
+      QUIET_WINDOW: "00:55-02:00"
+      TZ: "Europe/Oslo"
       SMTP_USER: "alerts@example.com"
       SMTP_PASSWORD: "app_password_here"
       SMTP_SERVER: "smtp.example.com"
